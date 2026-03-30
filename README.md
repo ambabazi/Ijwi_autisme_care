@@ -2,7 +2,7 @@
 
 Early autism screening platform for Rwanda — built for the Software Engineering course at African Leadership University.
 
-**Live URL:** https://ijwi-autism-care.onrender.com  
+**Live URL:** (https://ijwi-autisme-care.onrender.com/) 
 **Author:** Agnes Mbabazi  
 **Institution:** African Leadership University  
 **Version:** 1.0
