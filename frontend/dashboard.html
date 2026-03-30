@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard — Ijwi</title>
-  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
   <nav>
@@ -27,211 +27,264 @@
   <script>
     requireAuth();
 
-    async function loadDashboard() {
-      const user = getUser();
-      const container = document.getElementById('dashboard-content');
-
-      try {
-        if (user.role === 'health_officer' || user.role === 'admin') {
-          await loadHealthOfficerDashboard(container, user);
-        } else {
-          await loadParentCHWDashboard(container, user);
-        }
-      } catch (err) {
-        container.innerHTML = `<div class="alert alert-error show">${err.message}</div>`;
-      }
+async function loadDashboard() {
+  const user = getUser();
+  const container = document.getElementById('dashboard-content');
+  try {
+    if (user.role === 'health_officer' || user.role === 'admin') {
+      await loadHealthOfficerDashboard(container, user);
+    } else if (user.role === 'chw') {
+      await loadCHWDashboard(container, user);
+    } else {
+      await loadParentDashboard(container, user);
     }
+  } catch (err) {
+    container.innerHTML = `<div class="alert alert-error show">${err.message}</div>`;
+  }
+}
 
-    // ── PARENT / CHW VIEW ────────────────────────────────────
-    async function loadParentCHWDashboard(container, user) {
-      const [children, referrals] = await Promise.all([
-        apiFetch('/children'),
-        apiFetch('/referrals')
-      ]);
+// ── PARENT VIEW ──────────────────────────────────────────────────
+async function loadParentDashboard(container, user) {
+  const [children, referrals] = await Promise.all([
+    apiFetch('/children'),
+    apiFetch('/referrals')
+  ]);
 
-      const roleLabel = user.role === 'chw' ? 'Community Health Worker' : 'Guardian';
+  container.innerHTML = `
+    <div class="page-header">
+      <h1>Welcome, ${user.name} 👋</h1>
+      <p style="color:#4b5563;font-size:13px">Guardian / Parent</p>
+    </div>
 
-      let childrenHtml = '';
-      if (children.length === 0) {
-        childrenHtml = `
-          <div class="empty-state">
-            <div class="empty-icon">👶</div>
-            <p>No children registered yet.</p>
-            <a href="/register-child.html" class="btn btn-primary mt-16">Register your first child</a>
+    <div class="dashboard-grid">
+      <div class="stat-card">
+        <div class="stat-number">${children.length}</div>
+        <div class="stat-label">My children</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" style="color:#dc2626">${referrals.length}</div>
+        <div class="stat-label">Referrals generated</div>
+      </div>
+    </div>
+
+    ${referrals.length > 0 ? `
+      <div style="margin-bottom:24px">
+        <div class="section-title" style="color:#dc2626">🔴 Active referrals — take these to your health centre</div>
+        <div class="children-list">
+          ${referrals.slice(0,3).map(r => `
+            <div class="child-card" style="border-left:4px solid #dc2626">
+              <div class="child-info">
+                <h3>📋 Referral #${r.id}</h3>
+                <p>Generated: ${new Date(r.generated_at).toLocaleDateString()} · Status: ${r.status}</p>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>` : ''}
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div class="section-title" style="margin-bottom:0">My children</div>
+      <a href="/register-child.html" class="btn btn-primary" style="padding:8px 18px;font-size:14px">+ Add child</a>
+    </div>
+
+    ${children.length === 0 ? `
+      <div class="empty-state">
+        <div class="empty-icon">👶</div>
+        <p>No children registered yet.</p>
+        <a href="/register-child.html" class="btn btn-primary mt-16">Register your first child</a>
+      </div>` :
+      '<div class="children-list">' + children.map(c => {
+        const months = Math.floor((Date.now() - new Date(c.date_of_birth)) / (1000*60*60*24*30));
+        return `
+          <div class="child-card">
+            <div class="child-info">
+              <h3>👶 ${c.full_name}</h3>
+              <p>${c.gender} · ${months} months old · ${c.district}</p>
+            </div>
+            <div class="child-actions">
+              <a href="/screening.html?child_id=${c.id}" class="btn btn-primary" style="padding:8px 16px;font-size:14px">Screen</a>
+            </div>
           </div>`;
-      } else {
-        childrenHtml = '<div class="children-list">' +
-          children.map(c => {
-            const dob = new Date(c.date_of_birth);
-            const months = Math.floor((Date.now() - dob) / (1000*60*60*24*30));
-            return `
-              <div class="child-card">
-                <div class="child-info">
-                  <h3>👶 ${c.full_name}</h3>
-                  <p>${c.gender} · ${months} months old · ${c.district}</p>
-                </div>
-                <div class="child-actions">
-                  <a href="/screening.html?child_id=${c.id}" class="btn btn-primary" style="padding:8px 16px;font-size:14px">Screen</a>
-                </div>
-              </div>`;
-          }).join('') + '</div>';
-      }
-
-      container.innerHTML = `
-        <div class="page-header">
-          <h1>Welcome, ${user.name} 👋</h1>
-          <p style="color:#4b5563;font-size:13px">${roleLabel}</p>
-        </div>
-
-        <div class="dashboard-grid">
-          <div class="stat-card">
-            <div class="stat-number">${children.length}</div>
-            <div class="stat-label">Children registered</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number">${referrals.length}</div>
-            <div class="stat-label">Referrals generated</div>
-          </div>
-        </div>
-
-        ${referrals.length > 0 ? `
-        <div style="margin-bottom:24px">
-          <div class="section-title" style="color:#dc2626">🔴 Pending referrals</div>
-          <div class="children-list">
-            ${referrals.slice(0,3).map(r => `
-              <div class="child-card" style="border-left:4px solid #dc2626">
-                <div class="child-info">
-                  <h3>📋 Referral #${r.id}</h3>
-                  <p>Generated: ${new Date(r.generated_at).toLocaleDateString()} · Status: ${r.status}</p>
-                </div>
-              </div>`).join('')}
-          </div>
-        </div>` : ''}
-
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-          <div class="section-title" style="margin-bottom:0">Registered children</div>
-          <a href="/register-child.html" class="btn btn-primary" style="padding:8px 18px;font-size:14px">+ Add child</a>
-        </div>
-        ${childrenHtml}
-      `;
+      }).join('') + '</div>'
     }
+  `;
+}
 
-    // ── HEALTH OFFICER / ADMIN VIEW ─────────────────────────
-    async function loadHealthOfficerDashboard(container, user) {
-      const [statsRes, allChildren, referrals] = await Promise.all([
-        apiFetch('/screenings/stats'),
-        apiFetch('/children/all'),
-        apiFetch('/referrals')
-      ]);
+// ── CHW VIEW ─────────────────────────────────────────────────────
+async function loadCHWDashboard(container, user) {
+  const [children, referrals] = await Promise.all([
+    apiFetch('/children'),
+    apiFetch('/referrals')
+  ]);
 
-      const stats = statsRes.totals;
-      const byDistrict = statsRes.by_district;
+  const referCount   = referrals.length;
+  const pendingCount = referrals.filter(r => r.status === 'pending').length;
 
-      const pendingReferrals = referrals.filter(r => r.status === 'pending');
+  container.innerHTML = `
+    <div class="page-header">
+      <h1>CHW Workspace 🏥</h1>
+      <p style="color:#4b5563;font-size:13px">Community Health Worker — ${user.name}</p>
+    </div>
 
-      container.innerHTML = `
-        <div class="page-header">
-          <h1>District Health Dashboard 📊</h1>
-          <p>Welcome, ${user.name} — District Health Officer</p>
-        </div>
+    <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:14px;color:#1e3a8a">
+      <b>Your role:</b> You are screening children on behalf of families in your community.
+      Each child you register must have a named guardian and their consent recorded.
+    </div>
 
-        <div class="disclaimer">
-          <span>📊</span>
-          <div>This view shows anonymised national screening data. Individual child details are protected.</div>
-        </div>
+    <div class="dashboard-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:24px">
+      <div class="stat-card">
+        <div class="stat-number" style="color:#1a7a4a">${children.length}</div>
+        <div class="stat-label">Children screened</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" style="color:#dc2626">${referCount}</div>
+        <div class="stat-label">Referrals generated</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" style="color:#d97706">${pendingCount}</div>
+        <div class="stat-label">Pending follow-ups</div>
+      </div>
+    </div>
 
-        <div class="section-title">National overview</div>
-        <div class="dashboard-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:28px">
-          <div class="stat-card">
-            <div class="stat-number" style="color:#1a7a4a">${stats.total_children || 0}</div>
-            <div class="stat-label">Children screened</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number" style="color:#1d4ed8">${stats.total_screenings || 0}</div>
-            <div class="stat-label">Total screenings</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number" style="color:#1a7a4a">${stats.pass_count || 0}</div>
-            <div class="stat-label">🟢 Passing</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number" style="color:#d97706">${stats.monitor_count || 0}</div>
-            <div class="stat-label">🟡 Monitoring</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number" style="color:#dc2626">${stats.refer_count || 0}</div>
-            <div class="stat-label">🔴 Referred</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number" style="color:#dc2626">${pendingReferrals.length}</div>
-            <div class="stat-label">Pending referrals</div>
-          </div>
-        </div>
+    <div style="display:flex;gap:12px;margin-bottom:28px;flex-wrap:wrap">
+      <a href="/register-child.html" class="btn btn-primary">+ Register new child</a>
+      <a href="/awareness.html" class="btn btn-secondary">Share awareness content</a>
+    </div>
 
-        <div class="section-title">Referrals by district</div>
-        <div style="background:#fff;border-radius:10px;border:1px solid #e5e7eb;overflow:hidden;margin-bottom:28px">
-          <table style="width:100%;border-collapse:collapse;font-size:14px">
-            <thead>
-              <tr style="background:#1a7a4a;color:#fff">
-                <th style="padding:10px 14px;text-align:left">District</th>
-                <th style="padding:10px 14px;text-align:center">Children</th>
-                <th style="padding:10px 14px;text-align:center">Referrals</th>
-                <th style="padding:10px 14px;text-align:center">Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${byDistrict.length === 0
-                ? '<tr><td colspan="4" style="padding:20px;text-align:center;color:#9ca3af">No district data yet</td></tr>'
-                : byDistrict.map((d, i) => {
-                    const rate = d.children > 0
-                      ? Math.round((d.referrals / d.children) * 100) : 0;
-                    const rowBg = i % 2 === 0 ? '#fff' : '#f9fafb';
-                    const rateColor = rate >= 30 ? '#dc2626' : rate >= 15 ? '#d97706' : '#1a7a4a';
-                    return `
-                      <tr style="background:${rowBg}">
-                        <td style="padding:9px 14px;font-weight:600">${d.district}</td>
-                        <td style="padding:9px 14px;text-align:center">${d.children}</td>
-                        <td style="padding:9px 14px;text-align:center">${d.referrals}</td>
-                        <td style="padding:9px 14px;text-align:center;color:${rateColor};font-weight:700">${rate}%</td>
-                      </tr>`;
-                  }).join('')}
-            </tbody>
-          </table>
-        </div>
-
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-          <div class="section-title" style="margin-bottom:0">All registered children (${allChildren.length})</div>
-        </div>
+    ${referrals.length > 0 ? `
+      <div style="margin-bottom:24px">
+        <div class="section-title" style="color:#dc2626">🔴 Referrals requiring follow-up</div>
         <div style="background:#fff;border-radius:10px;border:1px solid #e5e7eb;overflow:hidden">
           <table style="width:100%;border-collapse:collapse;font-size:13px">
             <thead>
-              <tr style="background:#f3f4f6">
-                <th style="padding:10px 12px;text-align:left">Name</th>
-                <th style="padding:10px 12px;text-align:left">Gender</th>
-                <th style="padding:10px 12px;text-align:left">District</th>
-                <th style="padding:10px 12px;text-align:left">Guardian</th>
+              <tr style="background:#fee2e2">
+                <th style="padding:9px 12px;text-align:left">Referral</th>
+                <th style="padding:9px 12px;text-align:left">Date</th>
+                <th style="padding:9px 12px;text-align:left">Status</th>
               </tr>
             </thead>
             <tbody>
-              ${allChildren.length === 0
-                ? '<tr><td colspan="4" style="padding:20px;text-align:center;color:#9ca3af">No children registered yet</td></tr>'
-                : allChildren.map((c, i) => {
-                    const rowBg = i % 2 === 0 ? '#fff' : '#f9fafb';
-                    return `
-                      <tr style="background:${rowBg}">
-                        <td style="padding:8px 12px;font-weight:600">👶 ${c.full_name}</td>
-                        <td style="padding:8px 12px;text-transform:capitalize">${c.gender}</td>
-                        <td style="padding:8px 12px">${c.district}</td>
-                        <td style="padding:8px 12px;color:#4b5563">${c.guardian_name || '—'}</td>
-                      </tr>`;
-                  }).join('')}
+              ${referrals.map((r, i) => `
+                <tr style="background:${i%2===0?'#fff':'#fafafa'}">
+                  <td style="padding:8px 12px;font-weight:600">📋 Referral #${r.id}</td>
+                  <td style="padding:8px 12px">${new Date(r.generated_at).toLocaleDateString()}</td>
+                  <td style="padding:8px 12px">
+                    <span class="badge badge-${r.status === 'pending' ? 'refer' : 'pass'}">${r.status}</span>
+                  </td>
+                </tr>`).join('')}
             </tbody>
           </table>
         </div>
-      `;
-    }
+      </div>` : ''}
 
-    loadDashboard();
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="section-title" style="margin-bottom:0">Children you have screened</div>
+    </div>
+
+    ${children.length === 0 ? `
+      <div class="empty-state">
+        <div class="empty-icon">👶</div>
+        <p>No children screened yet. Start by registering a child.</p>
+        <a href="/register-child.html" class="btn btn-primary mt-16">Register first child</a>
+      </div>` :
+      '<div class="children-list">' + children.map(c => {
+        const months = Math.floor((Date.now() - new Date(c.date_of_birth)) / (1000*60*60*24*30));
+        return `
+          <div class="child-card">
+            <div class="child-info">
+              <h3>👶 ${c.full_name}</h3>
+              <p>${c.gender} · ${months} months · ${c.district}
+                ${c.guardian_name ? ` · Guardian: <b>${c.guardian_name}</b>` : ''}
+              </p>
+            </div>
+            <div class="child-actions">
+              <a href="/screening.html?child_id=${c.id}" class="btn btn-primary" style="padding:8px 14px;font-size:13px">Screen again</a>
+            </div>
+          </div>`;
+      }).join('') + '</div>'
+    }
+  `;
+}
+
+// ── HEALTH OFFICER VIEW (unchanged) ──────────────────────────────
+async function loadHealthOfficerDashboard(container, user) {
+  const [statsRes, allChildren, referrals] = await Promise.all([
+    apiFetch('/screenings/stats'),
+    apiFetch('/children/all'),
+    apiFetch('/referrals')
+  ]);
+  const stats = statsRes.totals;
+  const byDistrict = statsRes.by_district;
+  const pendingReferrals = referrals.filter(r => r.status === 'pending');
+
+  container.innerHTML = `
+    <div class="page-header">
+      <h1>District Health Dashboard 📊</h1>
+      <p>Welcome, ${user.name} — District Health Officer</p>
+    </div>
+    <div class="disclaimer">
+      <span>📊</span>
+      <div>This view shows anonymised national screening data.</div>
+    </div>
+    <div class="section-title">National overview</div>
+    <div class="dashboard-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:28px">
+      <div class="stat-card"><div class="stat-number" style="color:#1a7a4a">${stats.total_children||0}</div><div class="stat-label">Children screened</div></div>
+      <div class="stat-card"><div class="stat-number" style="color:#1d4ed8">${stats.total_screenings||0}</div><div class="stat-label">Total screenings</div></div>
+      <div class="stat-card"><div class="stat-number" style="color:#1a7a4a">${stats.pass_count||0}</div><div class="stat-label">🟢 Passing</div></div>
+      <div class="stat-card"><div class="stat-number" style="color:#d97706">${stats.monitor_count||0}</div><div class="stat-label">🟡 Monitoring</div></div>
+      <div class="stat-card"><div class="stat-number" style="color:#dc2626">${stats.refer_count||0}</div><div class="stat-label">🔴 Referred</div></div>
+      <div class="stat-card"><div class="stat-number" style="color:#dc2626">${pendingReferrals.length}</div><div class="stat-label">Pending referrals</div></div>
+    </div>
+    <div class="section-title">Referrals by district</div>
+    <div style="background:#fff;border-radius:10px;border:1px solid #e5e7eb;overflow:hidden;margin-bottom:28px">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:#1a7a4a;color:#fff">
+          <th style="padding:10px 14px;text-align:left">District</th>
+          <th style="padding:10px 14px;text-align:center">Children</th>
+          <th style="padding:10px 14px;text-align:center">Referrals</th>
+          <th style="padding:10px 14px;text-align:center">Rate</th>
+        </tr></thead>
+        <tbody>
+          ${byDistrict.length === 0
+            ? '<tr><td colspan="4" style="padding:20px;text-align:center;color:#9ca3af">No data yet</td></tr>'
+            : byDistrict.map((d,i) => {
+                const rate = d.children > 0 ? Math.round((d.referrals/d.children)*100) : 0;
+                const rateColor = rate>=30?'#dc2626':rate>=15?'#d97706':'#1a7a4a';
+                return `<tr style="background:${i%2===0?'#fff':'#f9fafb'}">
+                  <td style="padding:8px 14px;font-weight:600">${d.district}</td>
+                  <td style="padding:8px 14px;text-align:center">${d.children}</td>
+                  <td style="padding:8px 14px;text-align:center">${d.referrals}</td>
+                  <td style="padding:8px 14px;text-align:center;color:${rateColor};font-weight:700">${rate}%</td>
+                </tr>`;
+              }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="section-title">All registered children (${allChildren.length})</div>
+    <div style="background:#fff;border-radius:10px;border:1px solid #e5e7eb;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:#f3f4f6">
+          <th style="padding:10px 12px;text-align:left">Name</th>
+          <th style="padding:10px 12px;text-align:left">Gender</th>
+          <th style="padding:10px 12px;text-align:left">District</th>
+          <th style="padding:10px 12px;text-align:left">Guardian</th>
+        </tr></thead>
+        <tbody>
+          ${allChildren.length === 0
+            ? '<tr><td colspan="4" style="padding:20px;text-align:center;color:#9ca3af">No children yet</td></tr>'
+            : allChildren.map((c,i) => `
+                <tr style="background:${i%2===0?'#fff':'#f9fafb'}">
+                  <td style="padding:8px 12px;font-weight:600">👶 ${c.full_name}</td>
+                  <td style="padding:8px 12px;text-transform:capitalize">${c.gender}</td>
+                  <td style="padding:8px 12px">${c.district}</td>
+                  <td style="padding:8px 12px;color:#4b5563">${c.guardian_name||'—'}</td>
+                </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+loadDashboard();
   </script>
 </body>
 </html>

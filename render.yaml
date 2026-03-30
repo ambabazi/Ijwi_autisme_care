@@ -10,3 +10,5 @@ services:
         generateValue: true
       - key: NODE_ENV
         value: production
+      - key: DATABASE_URL
+        value: false

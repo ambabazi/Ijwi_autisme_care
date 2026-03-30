@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register Child — Ijwi</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <nav>
+    <a href="/" class="nav-brand"><span>🌿</span> Ijwi Autism Care</a>
+    <div class="nav-links" id="nav-links"></div>
+  </nav>
+
+  <div class="form-page">
+    <div class="form-card" style="max-width:520px">
+      <h2 id="form-title">Register a child</h2>
+      <p class="subtitle" id="form-subtitle">The system screens children aged 0–72 months</p>
+
+      <div class="alert" id="alert"></div>
+
+      <div class="disclaimer">
+        <span>⚠️</span>
+        <div>Ijwi is a screening tool only — not an official medical diagnosis.</div>
+      </div>
+
+      <!-- CHW only: guardian section -->
+      <div id="chw-guardian-section" style="display:none">
+        <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#1e3a8a">
+          <b>CHW mode:</b> You are registering this child on behalf of a family.
+          Record the guardian's details below — their consent is required before proceeding.
+        </div>
+        <div class="form-group">
+          <label for="guardian_name">Guardian's full name</label>
+          <input type="text" id="guardian_name" placeholder="Name of the child's parent or carer">
+          <div class="field-error" id="guardian-name-error"></div>
+        </div>
+        <div class="form-group">
+          <label for="guardian_phone">Guardian's phone number</label>
+          <input type="tel" id="guardian_phone" placeholder="e.g. 0788 123 456">
+          <div class="field-error" id="guardian-phone-error"></div>
+        </div>
+        <div class="form-group">
+          <label for="guardian_relationship">Relationship to child</label>
+          <select id="guardian_relationship">
+            <option value="">Select relationship</option>
+            <option value="mother">Mother</option>
+            <option value="father">Father</option>
+            <option value="grandmother">Grandmother</option>
+            <option value="grandfather">Grandfather</option>
+            <option value="aunt_uncle">Aunt / Uncle</option>
+            <option value="older_sibling">Older sibling</option>
+            <option value="other">Other carer</option>
+          </select>
+          <div class="field-error" id="guardian-rel-error"></div>
+        </div>
+        <hr style="border:none;border-top:1px solid #e5e7eb;margin:8px 0 16px">
+      </div>
+
+      <!-- Child fields — same for everyone -->
+      <div class="form-group">
+        <label for="full_name">Child's full name</label>
+        <input type="text" id="full_name" placeholder="Enter child's full name">
+        <div class="field-error" id="name-error"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="gender">Gender</label>
+        <select id="gender">
+          <option value="">Select gender</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+        </select>
+        <div class="field-error" id="gender-error"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="dob">Date of birth</label>
+        <input type="date" id="dob">
+        <div class="field-error" id="dob-error"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="district">District</label>
+        <select id="district">
+          <option value="">Select district</option>
+        </select>
+        <div class="field-error" id="district-error"></div>
+      </div>
+
+      <div class="consent-box">
+        <label>
+          <input type="checkbox" id="consent">
+          <span id="consent-text">
+            I give consent for this child's health data to be stored and processed
+            securely by Ijwi Autism Care for developmental screening purposes.
+            I understand this is not an official diagnosis.
+          </span>
+        </label>
+        <div class="field-error" id="consent-error"></div>
+      </div>
+
+      <button class="btn btn-primary btn-full" id="submit-btn">Register child</button>
+      <a href="/dashboard.html" class="btn btn-secondary btn-full mt-16">← Back to dashboard</a>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/register.js"></script>
+  <script>
+    requireAuth();
+    populateDistricts('district');
+    document.getElementById('dob').max = new Date().toISOString().split('T')[0];
+
+    // Customise form based on role
+    const user = getUser();
+    const isCHW = user && user.role === 'chw';
+
+    if (isCHW) {
+      document.getElementById('chw-guardian-section').style.display = 'block';
+      document.getElementById('form-title').textContent = 'Register a child (CHW)';
+      document.getElementById('form-subtitle').textContent =
+        'Recording on behalf of a family in your community';
+      document.getElementById('consent-text').textContent =
+        'The guardian named above has verbally confirmed their consent for this ' +
+        'child\'s data to be stored and processed by Ijwi Autism Care for ' +
+        'developmental screening. I confirm as the recording CHW.';
+    }
+
+    document.getElementById('submit-btn').addEventListener('click', async () => {
+      clearErrors();
+      const full_name     = document.getElementById('full_name').value.trim();
+      const gender        = document.getElementById('gender').value;
+      const date_of_birth = document.getElementById('dob').value;
+      const district      = document.getElementById('district').value;
+      const consent_given = document.getElementById('consent').checked;
+      let valid = true;
+
+      // CHW-only validation
+      if (isCHW) {
+        const gName = document.getElementById('guardian_name').value.trim();
+        const gRel  = document.getElementById('guardian_relationship').value;
+        if (!gName) { showError('guardian-name-error', 'Guardian name is required'); valid = false; }
+        if (!gRel)  { showError('guardian-rel-error',  'Please select relationship'); valid = false; }
+      }
+
+      if (!full_name)     { showError('name-error',     'Child name is required');       valid = false; }
+      if (!gender)        { showError('gender-error',   'Please select gender');          valid = false; }
+      if (!date_of_birth) { showError('dob-error',      'Date of birth is required');     valid = false; }
+      if (!district)      { showError('district-error', 'Please select district');        valid = false; }
+      if (!consent_given) { showError('consent-error',  'Consent is required to proceed'); valid = false; }
+      if (!valid) return;
+
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Registering...';
+
+      // Build payload — include guardian fields if CHW
+      const payload = { full_name, gender, date_of_birth, district, consent_given };
+      if (isCHW) {
+        payload.guardian_name         = document.getElementById('guardian_name').value.trim();
+        payload.guardian_phone        = document.getElementById('guardian_phone').value.trim();
+        payload.guardian_relationship = document.getElementById('guardian_relationship').value;
+      }
+
+      try {
+        const data = await apiFetch('/children', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        window.location.href = `/screening.html?child_id=${data.child_id}`;
+      } catch (err) {
+        showAlert('alert', err.message);
+        btn.disabled = false;
+        btn.textContent = 'Register child';
+      }
+    });
+  </script>
+</body>
+</html>
