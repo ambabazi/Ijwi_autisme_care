@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard — Ijwi</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
   <nav>
@@ -13,29 +13,8 @@
   </nav>
 
   <div class="container">
-    <div class="page-header">
-      <h1 id="welcome-msg">Dashboard</h1>
-      <p>Manage your children's screening records</p>
-    </div>
-
-    <div class="dashboard-grid" id="stats-grid">
-      <div class="stat-card">
-        <div class="stat-number" id="stat-children">—</div>
-        <div class="stat-label">Children registered</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number" id="stat-referrals">—</div>
-        <div class="stat-label">Referrals generated</div>
-      </div>
-    </div>
-
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-      <div class="section-title" style="margin-bottom:0">Registered children</div>
-      <a href="/register-child.html" class="btn btn-primary" style="padding:8px 18px;font-size:14px">+ Add child</a>
-    </div>
-
-    <div id="children-container">
-      <div class="loading">Loading children...</div>
+    <div id="dashboard-content">
+      <div class="loading">Loading dashboard...</div>
     </div>
   </div>
 
@@ -50,27 +29,38 @@
 
     async function loadDashboard() {
       const user = getUser();
-      document.getElementById('welcome-msg').textContent = `Welcome, ${user.name} 👋`;
+      const container = document.getElementById('dashboard-content');
 
       try {
-        const children = await apiFetch('/children');
-        const referrals = await apiFetch('/referrals');
-
-        document.getElementById('stat-children').textContent = children.length;
-        document.getElementById('stat-referrals').textContent = referrals.length;
-
-        const container = document.getElementById('children-container');
-        if (children.length === 0) {
-          container.innerHTML = `
-            <div class="empty-state">
-              <div class="empty-icon">👶</div>
-              <p>No children registered yet.</p>
-              <a href="/register-child.html" class="btn btn-primary mt-16">Register your first child</a>
-            </div>`;
-          return;
+        if (user.role === 'health_officer' || user.role === 'admin') {
+          await loadHealthOfficerDashboard(container, user);
+        } else {
+          await loadParentCHWDashboard(container, user);
         }
+      } catch (err) {
+        container.innerHTML = `<div class="alert alert-error show">${err.message}</div>`;
+      }
+    }
 
-        container.innerHTML = '<div class="children-list">' +
+    // ── PARENT / CHW VIEW ────────────────────────────────────
+    async function loadParentCHWDashboard(container, user) {
+      const [children, referrals] = await Promise.all([
+        apiFetch('/children'),
+        apiFetch('/referrals')
+      ]);
+
+      const roleLabel = user.role === 'chw' ? 'Community Health Worker' : 'Guardian';
+
+      let childrenHtml = '';
+      if (children.length === 0) {
+        childrenHtml = `
+          <div class="empty-state">
+            <div class="empty-icon">👶</div>
+            <p>No children registered yet.</p>
+            <a href="/register-child.html" class="btn btn-primary mt-16">Register your first child</a>
+          </div>`;
+      } else {
+        childrenHtml = '<div class="children-list">' +
           children.map(c => {
             const dob = new Date(c.date_of_birth);
             const months = Math.floor((Date.now() - dob) / (1000*60*60*24*30));
@@ -82,14 +72,163 @@
                 </div>
                 <div class="child-actions">
                   <a href="/screening.html?child_id=${c.id}" class="btn btn-primary" style="padding:8px 16px;font-size:14px">Screen</a>
-                  <a href="/history.html?child_id=${c.id}" class="btn btn-secondary" style="padding:8px 16px;font-size:14px">History</a>
                 </div>
               </div>`;
           }).join('') + '</div>';
-      } catch (err) {
-        document.getElementById('children-container').innerHTML =
-          `<div class="alert alert-error show">${err.message}</div>`;
       }
+
+      container.innerHTML = `
+        <div class="page-header">
+          <h1>Welcome, ${user.name} 👋</h1>
+          <p style="color:#4b5563;font-size:13px">${roleLabel}</p>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="stat-card">
+            <div class="stat-number">${children.length}</div>
+            <div class="stat-label">Children registered</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${referrals.length}</div>
+            <div class="stat-label">Referrals generated</div>
+          </div>
+        </div>
+
+        ${referrals.length > 0 ? `
+        <div style="margin-bottom:24px">
+          <div class="section-title" style="color:#dc2626">🔴 Pending referrals</div>
+          <div class="children-list">
+            ${referrals.slice(0,3).map(r => `
+              <div class="child-card" style="border-left:4px solid #dc2626">
+                <div class="child-info">
+                  <h3>📋 Referral #${r.id}</h3>
+                  <p>Generated: ${new Date(r.generated_at).toLocaleDateString()} · Status: ${r.status}</p>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>` : ''}
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="section-title" style="margin-bottom:0">Registered children</div>
+          <a href="/register-child.html" class="btn btn-primary" style="padding:8px 18px;font-size:14px">+ Add child</a>
+        </div>
+        ${childrenHtml}
+      `;
+    }
+
+    // ── HEALTH OFFICER / ADMIN VIEW ─────────────────────────
+    async function loadHealthOfficerDashboard(container, user) {
+      const [statsRes, allChildren, referrals] = await Promise.all([
+        apiFetch('/screenings/stats'),
+        apiFetch('/children/all'),
+        apiFetch('/referrals')
+      ]);
+
+      const stats = statsRes.totals;
+      const byDistrict = statsRes.by_district;
+
+      const pendingReferrals = referrals.filter(r => r.status === 'pending');
+
+      container.innerHTML = `
+        <div class="page-header">
+          <h1>District Health Dashboard 📊</h1>
+          <p>Welcome, ${user.name} — District Health Officer</p>
+        </div>
+
+        <div class="disclaimer">
+          <span>📊</span>
+          <div>This view shows anonymised national screening data. Individual child details are protected.</div>
+        </div>
+
+        <div class="section-title">National overview</div>
+        <div class="dashboard-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:28px">
+          <div class="stat-card">
+            <div class="stat-number" style="color:#1a7a4a">${stats.total_children || 0}</div>
+            <div class="stat-label">Children screened</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" style="color:#1d4ed8">${stats.total_screenings || 0}</div>
+            <div class="stat-label">Total screenings</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" style="color:#1a7a4a">${stats.pass_count || 0}</div>
+            <div class="stat-label">🟢 Passing</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" style="color:#d97706">${stats.monitor_count || 0}</div>
+            <div class="stat-label">🟡 Monitoring</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" style="color:#dc2626">${stats.refer_count || 0}</div>
+            <div class="stat-label">🔴 Referred</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" style="color:#dc2626">${pendingReferrals.length}</div>
+            <div class="stat-label">Pending referrals</div>
+          </div>
+        </div>
+
+        <div class="section-title">Referrals by district</div>
+        <div style="background:#fff;border-radius:10px;border:1px solid #e5e7eb;overflow:hidden;margin-bottom:28px">
+          <table style="width:100%;border-collapse:collapse;font-size:14px">
+            <thead>
+              <tr style="background:#1a7a4a;color:#fff">
+                <th style="padding:10px 14px;text-align:left">District</th>
+                <th style="padding:10px 14px;text-align:center">Children</th>
+                <th style="padding:10px 14px;text-align:center">Referrals</th>
+                <th style="padding:10px 14px;text-align:center">Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${byDistrict.length === 0
+                ? '<tr><td colspan="4" style="padding:20px;text-align:center;color:#9ca3af">No district data yet</td></tr>'
+                : byDistrict.map((d, i) => {
+                    const rate = d.children > 0
+                      ? Math.round((d.referrals / d.children) * 100) : 0;
+                    const rowBg = i % 2 === 0 ? '#fff' : '#f9fafb';
+                    const rateColor = rate >= 30 ? '#dc2626' : rate >= 15 ? '#d97706' : '#1a7a4a';
+                    return `
+                      <tr style="background:${rowBg}">
+                        <td style="padding:9px 14px;font-weight:600">${d.district}</td>
+                        <td style="padding:9px 14px;text-align:center">${d.children}</td>
+                        <td style="padding:9px 14px;text-align:center">${d.referrals}</td>
+                        <td style="padding:9px 14px;text-align:center;color:${rateColor};font-weight:700">${rate}%</td>
+                      </tr>`;
+                  }).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="section-title" style="margin-bottom:0">All registered children (${allChildren.length})</div>
+        </div>
+        <div style="background:#fff;border-radius:10px;border:1px solid #e5e7eb;overflow:hidden">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr style="background:#f3f4f6">
+                <th style="padding:10px 12px;text-align:left">Name</th>
+                <th style="padding:10px 12px;text-align:left">Gender</th>
+                <th style="padding:10px 12px;text-align:left">District</th>
+                <th style="padding:10px 12px;text-align:left">Guardian</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${allChildren.length === 0
+                ? '<tr><td colspan="4" style="padding:20px;text-align:center;color:#9ca3af">No children registered yet</td></tr>'
+                : allChildren.map((c, i) => {
+                    const rowBg = i % 2 === 0 ? '#fff' : '#f9fafb';
+                    return `
+                      <tr style="background:${rowBg}">
+                        <td style="padding:8px 12px;font-weight:600">👶 ${c.full_name}</td>
+                        <td style="padding:8px 12px;text-transform:capitalize">${c.gender}</td>
+                        <td style="padding:8px 12px">${c.district}</td>
+                        <td style="padding:8px 12px;color:#4b5563">${c.guardian_name || '—'}</td>
+                      </tr>`;
+                  }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
     }
 
     loadDashboard();

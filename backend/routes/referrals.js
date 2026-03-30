@@ -1,29 +1,36 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
-const { getDb } = require('../database/db');
+const { protect, requireRole } = require('../middleware/authMiddleware');
+const { query } = require('../database/db');
 
-router.get('/', protect, (req, res) => {
-  const db = getDb();
-  let referrals;
-  if (req.user.role === 'admin' || req.user.role === 'health_officer') {
-    referrals = db.prepare('SELECT * FROM referrals ORDER BY generated_at DESC').all();
-  } else {
-    referrals = db.prepare(
-      `SELECT r.* FROM referrals r
-       JOIN children c ON r.child_id = c.id
-       WHERE c.guardian_id = ?
-       ORDER BY r.generated_at DESC`
-    ).all(req.user.id);
+router.get('/', protect, async (req, res) => {
+  try {
+    let result;
+    if (req.user.role === 'admin' || req.user.role === 'health_officer') {
+      result = await query('SELECT * FROM referrals ORDER BY generated_at DESC');
+    } else {
+      result = await query(
+        `SELECT r.* FROM referrals r
+         JOIN children c ON r.child_id = c.id
+         WHERE c.guardian_id = $1
+         ORDER BY r.generated_at DESC`,
+        [req.user.id]
+      );
+    }
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  res.json(referrals);
 });
 
-router.get('/:id', protect, (req, res) => {
-  const db = getDb();
-  const referral = db.prepare('SELECT * FROM referrals WHERE id = ?').get(req.params.id);
-  if (!referral) return res.status(404).json({ error: 'Referral not found' });
-  res.json(referral);
+router.get('/:id', protect, async (req, res) => {
+  try {
+    const result = await query('SELECT * FROM referrals WHERE id = $1', [req.params.id]);
+    if (!result.rows[0]) return res.status(404).json({ error: 'Referral not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

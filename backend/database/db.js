@@ -1,21 +1,28 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+const { Pool } = require('pg');
 const fs = require('fs');
+const path = require('path');
 
-const DB_PATH = path.join(__dirname, 'ijwi.db');
-const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
+// Pool manages multiple connections efficiently
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
 
-let db;
-
-function getDb() {
-  if (!db) {
-    db = new Database(DB_PATH);
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
-    const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
-    db.exec(schema);
+// Run the schema once when the server starts
+async function initDb() {
+  const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
+  try {
+    await pool.query(schema);
+    console.log('Database schema ready');
+  } catch (err) {
+    console.error('Schema init error:', err.message);
   }
-  return db;
 }
 
-module.exports = { getDb };
+// Simple query helper — use this everywhere instead of pool.query directly
+async function query(text, params) {
+  const result = await pool.query(text, params);
+  return result;
+}
+
+module.exports = { query, initDb };

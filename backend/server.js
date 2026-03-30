@@ -1,48 +1,43 @@
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-});
-
-process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled Rejection:', reason);
-});
-
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
-const authRoutes = require('./routes/auth');
-const childrenRoutes = require('./routes/children');
+const authRoutes      = require('./routes/auth');
+const childrenRoutes  = require('./routes/children');
 const screeningRoutes = require('./routes/screenings');
-const referralRoutes = require('./routes/referrals');
+const referralRoutes  = require('./routes/referrals');
+
+const { initDb } = require('./database/db');
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
-
-// Serve frontend static files
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-// API routes
-app.use('/api/auth', authRoutes);
-app.use('/api/children', childrenRoutes);
+app.use('/api/auth',       authRoutes);
+app.use('/api/children',   childrenRoutes);
 app.use('/api/screenings', screeningRoutes);
-app.use('/api/referrals', referralRoutes);
+app.use('/api/referrals',  referralRoutes);
 
-// Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Ijwi API is running' });
 });
 
-// Fallback: serve frontend for any non-API route
-app.get('/{*path}', (req, res) => {
+app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Ijwi server running on http://localhost:${PORT}`);
-});
 
+// Wait for database to be ready before accepting connections
+async function start() {
+  await initDb();
+  app.listen(PORT, () => {
+    console.log(`Ijwi server running on http://localhost:${PORT}`);
+  });
+}
+
+start();
 module.exports = app;
