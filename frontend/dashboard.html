@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Ijwi</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav>
+    <a href="/" class="nav-brand"><span>🌿</span> Ijwi Autism Care</a>
+    <div class="nav-links" id="nav-links"></div>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1 id="welcome-msg">Dashboard</h1>
+      <p>Manage your children's screening records</p>
+    </div>
+
+    <div class="dashboard-grid" id="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number" id="stat-children">—</div>
+        <div class="stat-label">Children registered</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="stat-referrals">—</div>
+        <div class="stat-label">Referrals generated</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div class="section-title" style="margin-bottom:0">Registered children</div>
+      <a href="/register-child.html" class="btn btn-primary" style="padding:8px 18px;font-size:14px">+ Add child</a>
+    </div>
+
+    <div id="children-container">
+      <div class="loading">Loading children...</div>
+    </div>
+  </div>
+
+  <footer>
+    <strong>Ijwi Autism Care</strong> — African Leadership University · Agnes Mbabazi · 2026
+  </footer>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    requireAuth();
+
+    async function loadDashboard() {
+      const user = getUser();
+      document.getElementById('welcome-msg').textContent = `Welcome, ${user.name} 👋`;
+
+      try {
+        const children = await apiFetch('/children');
+        const referrals = await apiFetch('/referrals');
+
+        document.getElementById('stat-children').textContent = children.length;
+        document.getElementById('stat-referrals').textContent = referrals.length;
+
+        const container = document.getElementById('children-container');
+        if (children.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-icon">👶</div>
+              <p>No children registered yet.</p>
+              <a href="/register-child.html" class="btn btn-primary mt-16">Register your first child</a>
+            </div>`;
+          return;
+        }
+
+        container.innerHTML = '<div class="children-list">' +
+          children.map(c => {
+            const dob = new Date(c.date_of_birth);
+            const months = Math.floor((Date.now() - dob) / (1000*60*60*24*30));
+            return `
+              <div class="child-card">
+                <div class="child-info">
+                  <h3>👶 ${c.full_name}</h3>
+                  <p>${c.gender} · ${months} months old · ${c.district}</p>
+                </div>
+                <div class="child-actions">
+                  <a href="/screening.html?child_id=${c.id}" class="btn btn-primary" style="padding:8px 16px;font-size:14px">Screen</a>
+                  <a href="/history.html?child_id=${c.id}" class="btn btn-secondary" style="padding:8px 16px;font-size:14px">History</a>
+                </div>
+              </div>`;
+          }).join('') + '</div>';
+      } catch (err) {
+        document.getElementById('children-container').innerHTML =
+          `<div class="alert alert-error show">${err.message}</div>`;
+      }
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>

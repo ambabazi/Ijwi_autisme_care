@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register — Ijwi</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav>
+    <a href="/" class="nav-brand"><span>🌿</span> Ijwi Autism Care</a>
+    <div class="nav-links" id="nav-links"></div>
+  </nav>
+
+  <div class="form-page">
+    <div class="form-card">
+      <h2>Create account</h2>
+      <p class="subtitle">Register to start screening your child</p>
+
+      <div class="alert" id="alert"></div>
+
+      <div class="form-group">
+        <label for="name">Full name</label>
+        <input type="text" id="name" placeholder="Your full name">
+        <div class="field-error" id="name-error"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email address</label>
+        <input type="email" id="email" placeholder="you@example.com">
+        <div class="field-error" id="email-error"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="At least 6 characters">
+        <div class="field-error" id="password-error"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="role">I am a</label>
+        <select id="role">
+          <option value="">Select your role</option>
+          <option value="parent">Parent / Guardian</option>
+          <option value="chw">Community Health Worker</option>
+          <option value="health_officer">District Health Officer</option>
+        </select>
+        <div class="field-error" id="role-error"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="district">District</label>
+        <select id="district">
+          <option value="">Select district</option>
+        </select>
+        <div class="field-error" id="district-error"></div>
+      </div>
+
+      <button class="btn btn-primary btn-full" id="register-btn">Create account</button>
+
+      <p class="text-center mt-16" style="font-size:14px;color:#4b5563">
+        Already have an account? <a href="/login.html" style="color:#1a7a4a;font-weight:600">Login</a>
+      </p>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/register.js"></script>
+  <script>
+    if (getToken()) window.location.href = '/dashboard.html';
+    populateDistricts('district');
+
+    document.getElementById('register-btn').addEventListener('click', async () => {
+      clearErrors();
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const role = document.getElementById('role').value;
+      const district = document.getElementById('district').value;
+      let valid = true;
+
+      if (!name) { showError('name-error', 'Full name is required'); valid = false; }
+      if (!email) { showError('email-error', 'Email is required'); valid = false; }
+      if (!password || password.length < 6) { showError('password-error', 'Password must be at least 6 characters'); valid = false; }
+      if (!role) { showError('role-error', 'Please select your role'); valid = false; }
+      if (!district) { showError('district-error', 'Please select your district'); valid = false; }
+      if (!valid) return;
+
+      const btn = document.getElementById('register-btn');
+      btn.disabled = true;
+      btn.textContent = 'Creating account...';
+
+      try {
+        const data = await apiFetch('/auth/register', {
+          method: 'POST',
+          body: JSON.stringify({ name, email, password, role, district })
+        });
+        saveAuth(data.token, data.name, data.role);
+        window.location.href = '/dashboard.html';
+      } catch (err) {
+        showAlert('alert', err.message);
+        btn.disabled = false;
+        btn.textContent = 'Create account';
+      }
+    });
+  </script>
+</body>
+</html>

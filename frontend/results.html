@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Results — Ijwi</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav>
+    <a href="/" class="nav-brand"><span>🌿</span> Ijwi Autism Care</a>
+    <div class="nav-links" id="nav-links"></div>
+  </nav>
+
+  <div class="container" id="results-container">
+    <div class="loading">Loading results...</div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    requireAuth();
+
+    const raw = sessionStorage.getItem('screening_result');
+    if (!raw) { window.location.href = '/dashboard.html'; }
+
+    const { result, child } = JSON.parse(raw);
+
+    const STATUS_CONFIG = {
+      pass: {
+        icon: '🟢',
+        label: 'Developing well',
+        message: `${child.full_name} is meeting developmental milestones for their age group. Continue monitoring and schedule the next screening in 3 months.`,
+        css: 'pass'
+      },
+      monitor: {
+        icon: '🟡',
+        label: 'Monitor closely',
+        message: `${child.full_name} missed 1–2 milestones. This does not necessarily indicate autism, but we recommend monitoring closely and scheduling a follow-up screening in 4–6 weeks.`,
+        css: 'monitor'
+      },
+      refer: {
+        icon: '🔴',
+        label: 'Referral recommended',
+        message: `${child.full_name} did not meet ${result.no_count} developmental milestones. The system has automatically generated a referral note. Please take this note to your nearest health center for a professional assessment.`,
+        css: 'refer'
+      }
+    };
+
+    const config = STATUS_CONFIG[result.status];
+
+    document.getElementById('results-container').innerHTML = `
+      <div class="page-header">
+        <h1>Screening complete</h1>
+        <p>${child.full_name} · ${result.age_in_months} months old</p>
+      </div>
+
+      <div class="result-banner ${config.css}">
+        <div class="result-icon">${config.icon}</div>
+        <h2>${config.label}</h2>
+        <p>${config.message}</p>
+      </div>
+
+      <div class="card" style="margin-bottom:20px">
+        <div style="font-size:14px;color:#4b5563">
+          <strong>Milestones assessed:</strong> ${result.no_count + (result.no_count === 0 ? 0 : 0) + (Object.keys(result).length)} &nbsp;|&nbsp;
+          <strong>Not met:</strong> ${result.no_count} &nbsp;|&nbsp;
+          <strong>Referral threshold:</strong> 3 or more
+        </div>
+      </div>
+
+      ${result.referral ? `
+        <div class="referral-box">
+          <h3>📋 Auto-generated referral note</h3>
+          <p style="font-size:13px;color:#6b7280;margin-bottom:10px">Show this to your health center or district hospital:</p>
+          <div class="referral-note">${result.referral.note}</div>
+          <button class="btn btn-danger" style="margin-top:12px" onclick="window.print()">🖨 Print referral note</button>
+        </div>
+      ` : ''}
+
+      <div class="disclaimer">
+        <span>⚠️</span>
+        <div>This is a screening tool only. It is not an official medical diagnosis. A qualified healthcare professional must confirm any result.</div>
+      </div>
+
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <a href="/dashboard.html" class="btn btn-secondary">← Back to dashboard</a>
+        <a href="/screening.html?child_id=${child.id}" class="btn btn-primary">Screen again</a>
+      </div>
+    `;
+  </script>
+</body>
+</html>
