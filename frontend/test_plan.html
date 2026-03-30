@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Plan — Ijwi Autism Care</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th { background:#1a7a4a; color:#fff; padding:10px 12px; text-align:left; }
+    td { padding:10px 12px; border-bottom:1px solid #e5e7eb; vertical-align:top; }
+    tr:nth-child(even) td { background:#f9fafb; }
+    .pass { color:#1a7a4a; font-weight:700; }
+    .fail { color:#dc2626; font-weight:700; }
+    .pending { color:#d97706; font-weight:700; }
+    h2 { margin:32px 0 12px; font-size:18px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="/" class="nav-brand"><span>🌿</span> Ijwi Autism Care</a>
+    <div class="nav-links" id="nav-links"></div>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>Manual Test Plan</h1>
+      <p>Ijwi Autism Care v1.0 — Software Engineering Formative</p>
+    </div>
+
+    <div class="card" style="margin-bottom:24px">
+      <strong>Project:</strong> Ijwi Autism Care &nbsp;|&nbsp;
+      <strong>Tester:</strong> Agnes Mbabazi &nbsp;|&nbsp;
+      <strong>Environment:</strong> Chrome on Linux, localhost:3000 &nbsp;|&nbsp;
+      <strong>Date:</strong> 2026
+    </div>
+
+    <h2>1. Authentication</h2>
+    <table>
+      <tr><th>ID</th><th>Test case</th><th>Steps</th><th>Expected result</th><th>Status</th></tr>
+      <tr>
+        <td>TC-01</td>
+        <td>Successful registration</td>
+        <td>Fill all fields, select role and district, click Register</td>
+        <td>Redirected to dashboard, name shows in nav</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>TC-02</td>
+        <td>Duplicate email rejected</td>
+        <td>Register with an email already in the system</td>
+        <td>Red alert: "Email already registered"</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>TC-03</td>
+        <td>Weak password rejected</td>
+        <td>Enter a 3-character password and submit</td>
+        <td>Field error: "Password must be at least 6 characters"</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>TC-04</td>
+        <td>Successful login</td>
+        <td>Enter correct email and password</td>
+        <td>Redirected to dashboard</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>TC-05</td>
+        <td>Wrong password rejected</td>
+        <td>Enter correct email, wrong password</td>
+        <td>Alert: "Invalid email or password"</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>TC-06</td>
+        <td>Protected route without token</td>
+        <td>Visit /dashboard.html without logging in</td>
+        <td>Redirected to /login.html</td>
+        <td class="pass">PASS</td>
+      </tr>
+    </table>
+
+    <h2>2. Child Registration</h2>
+    <table>
+      <tr><th>ID</th><th>Test case</th><th>Steps</th><th>Expected result</th><th>Status</th></tr>
+      <tr>
+        <td>TC-07</td>
+        <td>Successful child registration</td>
+        <td>Fill all fields, tick consent, click Register child</td>
+        <td>Redirected to screening page for that child</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>TC-08</td>
+        <td>Consent required</td>
+        <td>Fill all fields but leave consent unchecked, submit</td>
+        <td>Field error: "You must give consent to proceed"</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>TC-09</td>
+        <td>Child over 72 months rejected</td>
+        <td>Enter a date of birth from 2015</td>
+        <td>API returns 400: "Child must be between 0 and 72 months"</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>TC-10</td>
+        <td>All 30 districts available</td>
+        <td>Open district dropdown and count options</td>
+        <td>All 30 Rwanda districts listed alphabetically</td>
+        <td class="pass">PASS</td>
+      </tr>
+    </table>
+
+    <h2>3. STED Screening</h2>
+    <table>
+      <tr><th>ID</th><th>Test case</th><th>Steps</th><th>Expected result</th><th>Status</th></tr>
+      <tr>
+        <td>TC-11</td>
+        <td>Age-appropriate questions load</td>
+        <td>Register children of different ages and open screening for each</td>
+        <td>Different milestone sets shown per age group</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>TC-12</td>
+        <td>Progress bar updates</td>
+        <td>Answer questions one by one</td>
+        <td>Progress bar fills and counter updates after each answer</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>TC-13</td>
+        <td>Submit only when all answered</td>
+        <td>Answer fewer than all questions</td>
+        <td>Submit button does not appear until all answered</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>TC-14</td>
+        <td>Pass result — all Yes</td>
+        <td>Answer Yes to all milestone questions</td>
+        <td>Green banner: "Developing well", no referral note</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>TC-15</td>
+        <td>Monitor result — 2 No responses</td>
+        <td>Answer No to exactly 2 questions</td>
+        <td>Orange banner: "Monitor closely"</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>TC-16</td>
+        <td>Referral triggered — 3+ No responses</td>
+        <td>Answer No to 3 or more questions</td>
+        <td>Red banner + referral note auto-generated with child details</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>TC-17</td>
+        <td>Print referral note</td>
+        <td>Click "Print referral note" button</td>
+        <td>Browser print dialog opens</td>
+        <td class="pass">PASS</td>
+      </tr>
+    </table>
+
+    <h2>4. Non-Functional Requirements</h2>
+    <table>
+      <tr><th>ID</th><th>Requirement</th><th>Test method</th><th>Expected result</th><th>Status</th></tr>
+      <tr>
+        <td>TC-18</td>
+        <td>NFR-1: Data encryption</td>
+        <td>Check database — inspect password field in users table</td>
+        <td>Password stored as bcrypt hash, not plaintext</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>TC-19</td>
+        <td>NFR-2: Authentication required</td>
+        <td>Call /api/children without Authorization header</td>
+        <td>API returns 401 Unauthorized</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>TC-20</td>
+        <td>NFR-6: Disclaimer shown</td>
+        <td>Visit screening and results pages</td>
+        <td>Yellow disclaimer banner visible on both pages</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>TC-21</td>
+        <td>NFR-8: Screening log</td>
+        <td>Submit a screening and query the database</td>
+        <td>screenings table contains conducted_by user ID and timestamp</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>TC-22</td>
+        <td>Mobile responsiveness</td>
+        <td>Open app in Chrome DevTools at 375px width</td>
+        <td>All pages readable, no horizontal scroll</td>
+        <td class="pass">PASS</td>
+      </tr>
+    </table>
+
+    <div style="margin-top:32px;padding:16px;background:#e8f5ee;border-radius:10px;border:1px solid #86efac">
+      <strong style="color:#1a7a4a">Test summary:</strong>
+      22 test cases · <span class="pass">22 PASS</span> · <span class="fail">0 FAIL</span> · <span class="pending">0 PENDING</span>
+    </div>
+  </div>
+
+  <footer>
+    <strong>Ijwi Autism Care</strong> — Test Plan v1.0 · Agnes Mbabazi · 2026
+  </footer>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+</body>
+</html>
