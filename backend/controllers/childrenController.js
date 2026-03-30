@@ -61,3 +61,33 @@ async function getAllChildren(req, res) {
 }
 
 module.exports = { registerChild, getMyChildren, getChildById, getAllChildren };
+
+async function registerChild(req, res) {
+  try {
+    const {
+      full_name, gender, date_of_birth, district, consent_given,
+      guardian_name, guardian_phone, guardian_relationship
+    } = req.body;
+
+    const result = await query(
+      `INSERT INTO children
+        (guardian_id, full_name, gender, date_of_birth, district, consent_given,
+         guardian_name, guardian_phone, guardian_relationship)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+      [
+        req.user.id, full_name, gender, date_of_birth, district,
+        consent_given ? 1 : 0,
+        guardian_name || null,
+        guardian_phone || null,
+        guardian_relationship || null
+      ]
+    );
+
+    res.status(201).json({
+      message: 'Child registered successfully',
+      child_id: result.rows[0].id
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}

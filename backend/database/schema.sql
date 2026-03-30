@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS children (
   date_of_birth DATE NOT NULL,
   district TEXT NOT NULL,
   consent_given INTEGER NOT NULL DEFAULT 0,
+  guardian_name TEXT,
+guardian_phone TEXT,
+guardian_relationship TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
