@@ -2,7 +2,7 @@
 
 > Early autism screening platform for Rwanda — digitising the RBC STED tool for parents and community health workers across all 30 districts.
 
-**Live URL:** https://ijwi-autism.ambabazi.tech  
+**Live URL:** https://ijwi-autisme.ambabazi.tech/  
 **Author:** Agnes Mbabazi  
 **Institution:** African Leadership University  
 **Course:** Introduction to Software Engineering  
