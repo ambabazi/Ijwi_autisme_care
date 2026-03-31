@@ -6,8 +6,7 @@ services:
     buildCommand: npm install
     startCommand: node server.js
     domains:
-      - ambabazi.tech
-      - www.ambabazi.tech
+      - ijwi-autisme.ambabazi.tech
     envVars:
       - key: JWT_SECRET
         generateValue: true
